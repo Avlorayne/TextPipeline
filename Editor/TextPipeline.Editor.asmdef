@@ -1,0 +1,18 @@
+{
+  "name": "TextPipeline.Editor",
+  "rootNamespace": "TextPipeline.Editor",
+  "references": [
+    "GUID:05cf1aa70adb602429b8e55cd7c843e4"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
