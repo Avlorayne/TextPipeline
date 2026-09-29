@@ -5,61 +5,68 @@ namespace TextPipeline
     public enum MarkupDataType
     {
         String,
-        Number,
+        Float,
+        Int,
         Boolean
     }
 
-    public static class MarkupDataTypeExtensions
+    internal static class MarkupDataTypeExtensions
     {
-        public static Type GetCSharpType(this MarkupDataType dataType)
+        internal static Type GetCSharpType(this MarkupDataType dataType)
         {
             return dataType switch
             {
                 MarkupDataType.String => typeof(string),
                 MarkupDataType.Boolean => typeof(bool),
-                MarkupDataType.Number => typeof(float),
+                MarkupDataType.Float => typeof(float),
+                MarkupDataType.Int => typeof(int),
                 _ => throw new ArgumentOutOfRangeException(nameof(dataType), dataType, null)
             };
         }
 
-        public static bool TypeValid(this MarkupDataType dataType, Type cSharpType)
+        internal static bool TypeValid(this MarkupDataType dataType, Type cSharpType)
         {
             return dataType switch
             {
                 MarkupDataType.String => cSharpType == typeof(string),
-                MarkupDataType.Number => cSharpType == typeof(float) || cSharpType == typeof(int),
+                MarkupDataType.Float => cSharpType == typeof(float),
+                MarkupDataType.Int => cSharpType == typeof(int),
                 MarkupDataType.Boolean => cSharpType == typeof(bool),
                 _ => false
             };
         }
 
-        public static bool ValueValid(this MarkupDataType dataType, object value)
+        internal static bool ValueValid(this MarkupDataType dataType, object value)
         {
             return dataType switch
             {
                 MarkupDataType.String => value is string,
-                MarkupDataType.Number => value is int or float,
+                MarkupDataType.Float => value is float,
+                MarkupDataType.Int => value is int,
                 MarkupDataType.Boolean => value is bool,
                 _ => false
             };
         }
 
-        public static object ToValue(this MarkupDataType dataType, string value)
+        internal static object ToValue(this MarkupDataType dataType, string value)
         {
             return dataType switch
             {
                 MarkupDataType.String => value,
-                MarkupDataType.Number => int.TryParse(value, out var i) ? (object)i : float.Parse(value),
+                MarkupDataType.Float => float.Parse(value, System.Globalization.NumberStyles.AllowLeadingSign |
+                    System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture),
+                MarkupDataType.Int => int.Parse(value, System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture),
                 MarkupDataType.Boolean => bool.TryParse(value, out var b) && b,
                 _ => false
             };
         }
 
-        public static object ToValue(this MarkupDataType dataType, string value, Type targetType)
+        internal static object ToValue(this MarkupDataType dataType, string value, Type targetType)
         {
             if (!dataType.TypeValid(targetType))
                 throw new ArgumentException("Target type does not match MarkupDataType.", nameof(targetType));
-            if (dataType == MarkupDataType.Number)
+            if (dataType == MarkupDataType.Float)
             {
                 if (targetType == typeof(int))
                     return int.Parse(value, System.Globalization.NumberStyles.AllowLeadingSign,

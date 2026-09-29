@@ -11,7 +11,7 @@ namespace TextPipeline.Editor.Tests
         [Markup("wave")]
         private sealed class WaveSink : ITextSinkBase
         {
-            [MarkupProperty("speed", MarkupDataType.Number)]
+            [MarkupProperty("speed", MarkupDataType.Float)]
             public float Speed { get; set; }
 
             [MarkupProperty("label", MarkupDataType.String)]
@@ -20,7 +20,7 @@ namespace TextPipeline.Editor.Tests
             public TextPipeline TextPipeline { get; set; }
 
             [MarkupMethod("pause")]
-            public void Pause([MarkupParam("duration", MarkupDataType.Number)] float duration)
+            public void Pause([MarkupParam("duration", MarkupDataType.Float)] float duration)
             {
             }
 
@@ -47,7 +47,7 @@ namespace TextPipeline.Editor.Tests
             [MarkupProperty("title", MarkupDataType.String, false)]
             public string Title { get; set; }
 
-            [MarkupProperty("count", MarkupDataType.Number)]
+            [MarkupProperty("count", MarkupDataType.Int)]
             public int Count { get; set; }
 
             public TextPipeline TextPipeline { get; set; }
@@ -61,7 +61,22 @@ namespace TextPipeline.Editor.Tests
             }
 
             [MarkupMethod("set")]
-            public void Set([MarkupParam("value", MarkupDataType.Number, false)] float value)
+            public void Set([MarkupParam("value", MarkupDataType.Float, false)] float value)
+            {
+            }
+
+            [MarkupMethod("set-int")]
+            public void SetInt([MarkupParam("value", MarkupDataType.Int, false)] int value)
+            {
+            }
+
+            [MarkupMethod("set-bool")]
+            public void SetBool([MarkupParam("value", MarkupDataType.Boolean, false)] bool value)
+            {
+            }
+
+            [MarkupMethod("set-text")]
+            public void SetText([MarkupParam("value", MarkupDataType.String, false)] string value)
             {
             }
         }
@@ -247,6 +262,44 @@ namespace TextPipeline.Editor.Tests
         }
 
         [Test]
+        public void Parse_RejectsExplicitDefaultForRequiredProperty()
+        {
+            RootNode root = TextInfoMarkupParser.Parse(
+                "<required : title = \"\">bad</required>" +
+                "<required : title = \"ok\", count = 0>good</required>");
+
+            Assert.That(root.Diagnostics[0].Kind, Is.EqualTo(MarkupParseErrorKind.Contract));
+            Assert.That(root.Diagnostics[0].Message, Does.Contain("title").And.Contain("默认值"));
+            Assert.That(root.Children.OfType<BlockNode>().Count(), Is.EqualTo(1));
+        }
+
+        [TestCase("<required:set(0)>")]
+        [TestCase("<required:set(value:-0.0)>")]
+        [TestCase("<required:set-int(00)>")]
+        [TestCase("<required:set-bool(false)>")]
+        [TestCase("<required:set-text(\"\")>")]
+        public void Parse_RejectsExplicitDefaultForRequiredParameter(string invalidMarker)
+        {
+            RootNode root = TextInfoMarkupParser.Parse(invalidMarker + "<required:set(1)>");
+
+            Assert.That(root.Diagnostics, Has.Count.EqualTo(1));
+            Assert.That(root.Diagnostics[0].Kind, Is.EqualTo(MarkupParseErrorKind.Contract));
+            Assert.That(root.Diagnostics[0].Message, Does.Contain("value").And.Contain("默认值"));
+            Assert.That(root.Children.OfType<SingleMarkerNode>().Count(), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Parse_AllowsExplicitDefaultWhenAttributeAllowsIt()
+        {
+            RootNode root = TextInfoMarkupParser.Parse(
+                "<wave : speed = 0, label = \"\">text</wave><wave:play(clip:\"\", loop:false)>");
+
+            Assert.That(root.Diagnostics, Is.Empty);
+            Assert.That(root.Children.OfType<BlockNode>().Count(), Is.EqualTo(1));
+            Assert.That(root.Children.OfType<SingleMarkerNode>().Count(), Is.EqualTo(1));
+        }
+
+        [Test]
         public void Parse_RejectsFractionalValuesForIntegerTargets()
         {
             RootNode root = TextInfoMarkupParser.Parse(
@@ -257,15 +310,20 @@ namespace TextPipeline.Editor.Tests
             Assert.That(root.Diagnostics[0].Message, Does.Contain("count"));
             Assert.That(root.Children.OfType<BlockNode>().Count(), Is.EqualTo(1));
             var sink = new RequiredSink();
-            MarkupInject.PropertiesInject(sink, root.Children.OfType<BlockNode>().Single().GetPropertyInfos());
-            Assert.That(sink.Count, Is.EqualTo(2));
+            root.Children.OfType<BlockNode>().Single().PostProcessor = sink;
+            PostProcessorExecute.Execute(sink, root);
+            Assert.That(sink.ObservedCounts, Is.EqualTo(new[] { 2 }));
+            Assert.That(sink.Count, Is.Zero);
+            Assert.That(sink.Title, Is.Null);
         }
 
         [Test]
-        public void NumberConversion_PreservesIntegerTypeWithoutExplicitTarget()
+        public void Registry_ExposesDistinctIntegerAndFloatTypes()
         {
-            Assert.That(MarkupDataType.Number.ToValue("2"), Is.TypeOf<int>());
-            Assert.That(MarkupDataType.Number.ToValue("1.5"), Is.TypeOf<float>());
+            Assert.That(MarkupRegistry.TryGetProperty("required", "count", out var integerType), Is.True);
+            Assert.That(integerType, Is.EqualTo(MarkupDataType.Int));
+            Assert.That(MarkupRegistry.TryGetProperty("wave", "speed", out var floatType), Is.True);
+            Assert.That(floatType, Is.EqualTo(MarkupDataType.Float));
         }
 
         [Test]

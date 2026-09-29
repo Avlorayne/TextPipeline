@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using NUnit.Framework;
 using TextPipeline.Postprocess;
 
@@ -19,7 +18,7 @@ namespace TextPipeline.Editor.Tests
             public string Label { get; set; } = "default";
 
             [MarkupMethod("tick")]
-            public IEnumerator Tick(string name)
+            public IEnumerator Tick([MarkupParam("name", MarkupDataType.String)] string name)
             {
                 Events.Add($"{Label}:{name}:start");
                 yield return null;
@@ -37,9 +36,6 @@ namespace TextPipeline.Editor.Tests
                 yield break;
             }
         }
-
-        private static readonly PropertyInfo LabelProperty = typeof(SchedulingSink).GetProperty(nameof(SchedulingSink.Label));
-        private static readonly MethodInfo TickMethod = typeof(SchedulingSink).GetMethod(nameof(SchedulingSink.Tick));
 
         [SetUp]
         public void SetUp()
@@ -89,9 +85,9 @@ namespace TextPipeline.Editor.Tests
         private static TextSegment Segment(string label, string name)
         {
             return new TextSegment(
-                new Dictionary<PropertyInfo, object> { { LabelProperty, label } },
-                TickMethod,
-                new object[] { name });
+                new Dictionary<string, object> { { "label", label } },
+                "tick",
+                new[] { new KeyValuePair<string, object>("name", name) });
         }
 
         private static IEnumerator Empty()

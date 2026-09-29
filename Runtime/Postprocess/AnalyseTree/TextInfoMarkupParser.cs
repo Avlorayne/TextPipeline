@@ -326,7 +326,8 @@ namespace TextPipeline.Postprocess
             foreach (SourceSpan span in rawSpans)
             {
                 if (span.StartIndex < copiedThrough)
-                    throw new ArgumentException("Markup candidate spans overlap in the authoring source.", nameof(source));
+                    throw new ArgumentException("Markup candidate spans overlap in the authoring source.",
+                        nameof(source));
 
                 builder.Append(source, copiedThrough, span.StartIndex - copiedThrough);
                 copiedThrough = span.EndIndex;
@@ -345,6 +346,7 @@ namespace TextPipeline.Postprocess
                 snapshot[index].index = index;
                 snapshot[index].stringLength = 1;
             }
+
             return snapshot;
         }
 
@@ -378,7 +380,8 @@ namespace TextPipeline.Postprocess
 
             for (int characterIndex = 0; characterIndex < retainedCharacters.Count; characterIndex++)
             {
-                if (injectedTextInfo.characterInfo[characterIndex].character != retainedCharacters[characterIndex].character)
+                if (injectedTextInfo.characterInfo[characterIndex].character !=
+                    retainedCharacters[characterIndex].character)
                     throw new ArgumentException(
                         "Injected TMP text information must contain the marker-stripped character sequence.",
                         nameof(injectedTextInfo));
@@ -466,7 +469,8 @@ namespace TextPipeline.Postprocess
             return source.Length - remainder.Length;
         }
 
-        private static void RecoverInvalidTag(string source, RootNode rootNode, ref int index, int startIndex, string message)
+        private static void RecoverInvalidTag(string source, RootNode rootNode, ref int index, int startIndex,
+            string message)
         {
             int endIndex = FindTagRecoveryBoundary(source, startIndex);
             rootNode.AddDiagnostic(GuessCandidateErrorKind(source, startIndex), startIndex, endIndex, message);
@@ -534,7 +538,7 @@ namespace TextPipeline.Postprocess
                     out errorKind, out errorMessage))
                 return false;
 
-            if (MarkupRegistry.LookupForMethod(parsed.Markup, parsed.Method) == null)
+            if (!MarkupRegistry.HasMethod(parsed.Markup, parsed.Method))
             {
                 errorKind = MarkupParseErrorKind.Contextual;
                 errorMessage = $"标签 <{parsed.Markup}> 未声明函数 \"{parsed.Method}\"。";
@@ -565,8 +569,8 @@ namespace TextPipeline.Postprocess
         private static NamedValue[] BindSingleValue(string markup, string method, ParsedValue value,
             out MarkupParseErrorKind errorKind, out string errorMessage)
         {
-            var parameter = MarkupRegistry.LookupForParam(markup, method);
-            if (parameter.param == null)
+            var parameterName = MarkupRegistry.GetSingleParameterName(markup, method);
+            if (parameterName == null)
             {
                 errorKind = MarkupParseErrorKind.Contextual;
                 errorMessage = $"函数 {markup}:{method} 不能使用无参数名的单值形式。";
@@ -575,7 +579,7 @@ namespace TextPipeline.Postprocess
 
             errorKind = default;
             errorMessage = null;
-            return new[] { new NamedValue(parameter.paramName, value) };
+            return new[] { new NamedValue(parameterName, value) };
         }
 
         private static bool TryValidateMarkup(string markup, string scopeText, out int scope,
@@ -606,6 +610,9 @@ namespace TextPipeline.Postprocess
             out MarkupParseErrorKind errorKind, out string errorMessage)
         {
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
+            var declarations = method == null
+                ? MarkupRegistry.LookupForDeclaredProperties(markup)
+                : MarkupRegistry.LookupForDeclaredParams(markup, method);
             foreach (NamedValue pair in pairs)
             {
                 if (!seenNames.Add(pair.Name))
@@ -616,61 +623,49 @@ namespace TextPipeline.Postprocess
                 }
 
                 MarkupDataType dataType;
-                Type targetType;
                 if (method == null)
                 {
-                    var property = MarkupRegistry.LookupForProperty(markup, pair.Name);
-                    if (property.property == null)
+                    if (!MarkupRegistry.TryGetProperty(markup, pair.Name, out dataType))
                     {
                         errorKind = MarkupParseErrorKind.Contextual;
                         errorMessage = $"标签 <{markup}> 不接受属性 \"{pair.Name}\"。";
                         return false;
                     }
-
-                    dataType = property.dataType;
-                    targetType = property.property.PropertyType;
                 }
                 else
                 {
-                    var parameter = MarkupRegistry.LookupForParam(markup, method, pair.Name);
-                    if (parameter.param == null)
+                    if (!MarkupRegistry.TryGetParameter(markup, method, pair.Name, out dataType))
                     {
                         errorKind = MarkupParseErrorKind.Contextual;
                         errorMessage = $"函数 {markup}:{method} 不接受参数 \"{pair.Name}\"。";
                         return false;
                     }
-
-                    dataType = parameter.dataType;
-                    targetType = parameter.param.ParameterType;
                 }
 
-                if (!ValueMatches(dataType, targetType, pair.Value))
+                if (!ValueMatches(dataType, pair.Value))
                 {
                     errorKind = MarkupParseErrorKind.Contract;
                     errorMessage = $"{(method == null ? "属性" : "参数")} \"{pair.Name}\" 的值类型不匹配。";
                     return false;
                 }
+
+                if (declarations.Any(item => item.name == pair.Name && !item.allowDefault) &&
+                    IsDefaultValue(dataType, pair.Value))
+                {
+                    errorKind = MarkupParseErrorKind.Contract;
+                    errorMessage = $"{(method == null ? "属性" : "参数")} \"{pair.Name}\" 不允许使用默认值。";
+                    return false;
+                }
             }
 
-            if (method == null)
+            foreach (var declaration in declarations)
             {
-                foreach (var property in MarkupRegistry.LookupForDeclaredProperties(markup))
-                {
-                    if (property.allowDefault || seenNames.Contains(property.name)) continue;
-                    errorKind = MarkupParseErrorKind.Contract;
-                    errorMessage = $"标签 <{markup}> 的属性 \"{property.name}\" 不允许省略。";
-                    return false;
-                }
-            }
-            else
-            {
-                foreach (var parameter in MarkupRegistry.LookupForDeclaredParams(markup, method))
-                {
-                    if (parameter.allowDefault || seenNames.Contains(parameter.name)) continue;
-                    errorKind = MarkupParseErrorKind.Contract;
-                    errorMessage = $"函数 {markup}:{method} 的参数 \"{parameter.name}\" 不允许省略。";
-                    return false;
-                }
+                if (declaration.allowDefault || seenNames.Contains(declaration.name)) continue;
+                errorKind = MarkupParseErrorKind.Contract;
+                errorMessage = method == null
+                    ? $"标签 <{markup}> 的属性 \"{declaration.name}\" 不允许省略。"
+                    : $"函数 {markup}:{method} 的参数 \"{declaration.name}\" 不允许省略。";
+                return false;
             }
 
             errorKind = default;
@@ -678,18 +673,39 @@ namespace TextPipeline.Postprocess
             return true;
         }
 
-        private static bool ValueMatches(MarkupDataType dataType, Type targetType, ParsedValue value)
+        private static bool ValueMatches(MarkupDataType dataType, ParsedValue value)
         {
             if (dataType == MarkupDataType.String) return value.Kind == ValueKind.String;
             if (dataType == MarkupDataType.Boolean) return value.Kind == ValueKind.Boolean;
-            if (dataType != MarkupDataType.Number || value.Kind != ValueKind.Number) return false;
-            if (targetType == typeof(int))
+            if (value.Kind != ValueKind.Number) return false;
+            if (dataType == MarkupDataType.Int)
                 return int.TryParse(value.Text, NumberStyles.AllowLeadingSign,
                     CultureInfo.InvariantCulture, out _);
+            if (dataType != MarkupDataType.Float) return false;
 
             return float.TryParse(value.Text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
                        CultureInfo.InvariantCulture, out float number) &&
                    !float.IsNaN(number) && !float.IsInfinity(number);
+        }
+
+        private static bool IsDefaultValue(MarkupDataType dataType, ParsedValue value)
+        {
+            switch (dataType)
+            {
+                case MarkupDataType.String:
+                    // Markup has no null literal; the empty string is its explicit default string value.
+                    return value.Text.Length == 0;
+                case MarkupDataType.Boolean:
+                    return value.Text == "false";
+                case MarkupDataType.Int:
+                    return int.TryParse(value.Text, NumberStyles.AllowLeadingSign,
+                        CultureInfo.InvariantCulture, out var integer) && integer == 0;
+                case MarkupDataType.Float:
+                    return float.TryParse(value.Text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                        CultureInfo.InvariantCulture, out var number) && number == 0f;
+                default:
+                    return false;
+            }
         }
 
         private static KeyValuePair<string, string>[] ToPairs(IEnumerable<NamedValue> values)

@@ -36,18 +36,6 @@ namespace TextPipeline.Postprocess
         public ITextSinkBase PostProcessor;
 
         public readonly List<ITextSinkBase> SignPost = new();
-
-        public (PropertyInfo property, MarkupDataType dataType, bool allowDefault, string value)[]
-            GetPropertyInfos()
-        {
-            List<(PropertyInfo property, MarkupDataType dataType, bool allowDefault, string value)> list = new();
-            foreach (var p in PropertyPairs)
-            {
-                var item = MarkupRegistry.LookupForProperty(Markup, p.Key);
-                list.Add((item.property, item.dataType, item.allowDefault, p.Value));
-            }
-            return list.ToArray();
-        }
     }
 
     public sealed class RootNode : BlockNode
@@ -71,20 +59,6 @@ namespace TextPipeline.Postprocess
         public int ScopeNum = 0;
         
         public ITextSinkBase PostProcessor;
-        
-        public MethodInfo GetMethodInfo() => MarkupRegistry.LookupForMethod(Markup, MethodName);
-
-        public (ParameterInfo param, MarkupDataType dataType, bool allowDefault, string value)[]
-            GetParameterInfos()
-        {
-            List<(ParameterInfo param, MarkupDataType dataType, bool allowDefault, string value)> list = new();
-            foreach (var p in ParamPairs)
-            {
-                var item = MarkupRegistry.LookupForParam(Markup, MethodName, p.Key);
-                list.Add((item.param, item.dataType, item.allowDefault, p.Value));
-            }
-            return list.ToArray();
-        }
     }
 
     /// <summary>

@@ -5,6 +5,13 @@
   "unity": "2022.3",
   "description": "面向 TextMeshPro 的标记语言后处理管线：以类 HTML 的标签声明文本效果，经解析树构建与依赖注入驱动 ITextSink 执行。",
   "dependencies": {
-    "com.unity.textmeshpro" : "3.0.7"
-  }
+    "com.unity.textmeshpro": "3.0.7"
+  },
+  "samples": [
+    {
+      "displayName": "Effects Demo",
+      "description": "A playable scene demonstrating visual effects, scope, property injection and segment scheduling.",
+      "path": "Samples~/Effects Demo"
+    }
+  ]
 }

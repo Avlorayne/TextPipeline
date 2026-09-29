@@ -1,5 +1,5 @@
 using NUnit.Framework;
-using TMPro;
+using System.Collections.Generic;
 using TextPipeline.Postprocess;
 
 namespace TextPipeline.Editor.Tests
@@ -9,14 +9,17 @@ namespace TextPipeline.Editor.Tests
         [Markup("type")]
         private sealed class TextTyper : ITextSinkBase
         {
-            [MarkupProperty("speed", MarkupDataType.Number)]
+            [MarkupProperty("speed", MarkupDataType.Float)]
             public float Speed { get; set; } = 0.15f;
+
+            public float LastDelay { get; private set; }
 
             public TextPipeline TextPipeline { get; set; }
 
             [MarkupMethod("delay")]
-            public void Delay([MarkupParam("seconds", MarkupDataType.Number, false)] float seconds)
+            public void Delay([MarkupParam("seconds", MarkupDataType.Float, false)] float seconds)
             {
+                LastDelay = seconds;
             }
 
         }
@@ -31,30 +34,36 @@ namespace TextPipeline.Editor.Tests
         public void RegisterMarkups_TemplateClass_ExposesRegisteredMetadataThroughLookupApi()
         {
             Assert.That(MarkupRegistry.LookupForType("type"), Is.EqualTo(typeof(TextTyper)));
-
-            var property = MarkupRegistry.LookupForProperty("type", "speed");
-            Assert.That(property.property.Name, Is.EqualTo(nameof(TextTyper.Speed)));
-            Assert.That(property.dataType, Is.EqualTo(MarkupDataType.Number));
-            Assert.That(property.allowDefault, Is.True);
+            Assert.That(MarkupRegistry.TryGetProperty("type", "speed", out var propertyType), Is.True);
+            Assert.That(propertyType, Is.EqualTo(MarkupDataType.Float));
             Assert.That(MarkupRegistry.LookupForDeclaredProperties("type"), Has.Length.EqualTo(1));
             Assert.That(MarkupRegistry.LookupForDeclaredProperties("type")[0].name, Is.EqualTo("speed"));
+            Assert.That(MarkupRegistry.LookupForDeclaredProperties("type")[0].allowDefault, Is.True);
 
-            Assert.That(MarkupRegistry.LookupForMethod("type", "delay").Name,
-                Is.EqualTo(nameof(TextTyper.Delay)));
+            Assert.That(MarkupRegistry.HasMethod("type", "delay"), Is.True);
 
-            var parameter = MarkupRegistry.LookupForParam("type", "delay", "seconds");
-            Assert.That(parameter.param.Name, Is.EqualTo("seconds"));
-            Assert.That(parameter.dataType, Is.EqualTo(MarkupDataType.Number));
-            Assert.That(parameter.allowDefault, Is.False);
+            Assert.That(MarkupRegistry.TryGetParameter("type", "delay", "seconds", out var parameterType), Is.True);
+            Assert.That(parameterType, Is.EqualTo(MarkupDataType.Float));
             Assert.That(MarkupRegistry.LookupForDeclaredParams("type", "delay"), Has.Length.EqualTo(1));
             Assert.That(MarkupRegistry.LookupForDeclaredParams("type", "delay")[0].name,
                 Is.EqualTo("seconds"));
+            Assert.That(MarkupRegistry.LookupForDeclaredParams("type", "delay")[0].allowDefault, Is.False);
+            Assert.That(MarkupRegistry.GetSingleParameterName("type", "delay"), Is.EqualTo("seconds"));
+        }
 
-            var singleParameter = MarkupRegistry.LookupForParam("type", "delay");
-            Assert.That(singleParameter.param, Is.EqualTo(parameter.param));
-            Assert.That(singleParameter.paramName, Is.EqualTo("seconds"));
-            Assert.That(singleParameter.dataType, Is.EqualTo(MarkupDataType.Number));
-            Assert.That(singleParameter.allowDefault, Is.False);
+        [Test]
+        public void CachedDelegates_GetSetAndInvokeByName()
+        {
+            var sink = new TextTyper();
+            Assert.That(MarkupRegistry.Get(sink, "speed"), Is.EqualTo(0.15f));
+            MarkupRegistry.Set(sink, "speed", 0.5f);
+            Assert.That(sink.Speed, Is.EqualTo(0.5f));
+
+            MarkupRegistry.Invoke(sink, "delay", new[]
+            {
+                new KeyValuePair<string, object>("seconds", 1.25f)
+            });
+            Assert.That(sink.LastDelay, Is.EqualTo(1.25f));
         }
 
         [Test]

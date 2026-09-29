@@ -3,9 +3,9 @@
 namespace TextPipeline
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public class MarkupMethodAttribute : Attribute
+    public sealed class MarkupMethodAttribute : Attribute
     {
-        public string Name { get; private set; }
+        internal string Name { get; private set; }
 
         public MarkupMethodAttribute(string name)
         {
@@ -14,11 +14,11 @@ namespace TextPipeline
     }
 
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    public class MarkupParamAttribute : Attribute
+    public sealed class MarkupParamAttribute : Attribute
     {
-        public string Name { get; private set; }
-        public MarkupDataType DataType { get; private set; }
-        public bool AllowDefault { get; set; }
+        internal string Name { get; private set; }
+        internal MarkupDataType DataType { get; private set; }
+        internal bool AllowDefault { get; set; }
 
         public MarkupParamAttribute(string name, MarkupDataType type, bool allowDefault = true)
         {

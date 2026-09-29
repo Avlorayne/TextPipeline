@@ -29,7 +29,7 @@ namespace TextPipeline.Editor.Tests
             [MarkupProperty("label", MarkupDataType.String)]
             public string Label { get; set; } = "default";
 
-            [MarkupProperty("strength", MarkupDataType.Number)]
+            [MarkupProperty("strength", MarkupDataType.Float)]
             public float Strength { get; set; }
 
             [MarkupProperty("enabled", MarkupDataType.Boolean)]

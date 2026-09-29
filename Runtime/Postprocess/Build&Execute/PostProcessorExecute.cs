@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace TextPipeline.Postprocess
 {
@@ -29,19 +28,19 @@ namespace TextPipeline.Postprocess
         }
 
         private static void Visit(ITextSinkBase sink, Node node,
-            Dictionary<PropertyInfo, object> properties, List<TextSegment> steps, bool isActive)
+            Dictionary<string, object> properties, List<TextSegment> steps, bool isActive)
         {
             switch (node)
             {
                 case BlockNode block:
                     if (block.PostProcessor == sink)
                     {
-                        var inheritedProperties = new Dictionary<PropertyInfo, object>(properties);
-                        foreach (var item in block.GetPropertyInfos())
+                        var inheritedProperties = new Dictionary<string, object>(properties);
+                        foreach (var item in block.PropertyPairs)
                         {
-                            if (!item.property.CanWrite || item.property.GetIndexParameters().Length > 0)
-                                continue;
-                            inheritedProperties[item.property] = item.dataType.ToValue(item.value); // 属性覆盖，未声明的属性继承自父块
+                            if (!MarkupRegistry.TryGetProperty(block.Markup, item.Key, out var dataType))
+                                throw new ArgumentException($"Unknown property {block.Markup}.{item.Key}.");
+                            inheritedProperties[item.Key] = dataType.ToValue(item.Value); // 属性覆盖，未声明的属性继承自父块
                         }
 
                         foreach (var child in block.Children)
@@ -58,9 +57,15 @@ namespace TextPipeline.Postprocess
                 case SingleMarkerNode marker:
                     if (marker.PostProcessor == sink)
                     {
-                        var method = marker.GetMethodInfo();
-                        var arguments = MarkupInject.ResolveMethodArguments(method, marker.GetParameterInfos());
-                        steps.Add(new TextSegment(properties, method, arguments));
+                        var arguments = new KeyValuePair<string, object>[marker.ParamPairs.Length];
+                        for (int i = 0; i < marker.ParamPairs.Length; i++)
+                        {
+                            var pair = marker.ParamPairs[i];
+                            if (!MarkupRegistry.TryGetParameter(marker.Markup, marker.MethodName, pair.Key, out var dataType))
+                                throw new ArgumentException($"Unknown parameter {marker.Markup}:{marker.MethodName}.{pair.Key}.");
+                            arguments[i] = new KeyValuePair<string, object>(pair.Key, dataType.ToValue(pair.Value));
+                        }
+                        steps.Add(new TextSegment(properties, marker.MethodName, arguments));
                     }
 
                     break;

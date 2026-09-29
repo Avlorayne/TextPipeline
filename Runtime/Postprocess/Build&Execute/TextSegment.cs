@@ -1,26 +1,26 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace TextPipeline.Postprocess
 {
     public sealed class TextSegment
     {
-        private readonly object[] _arguments;
-        private readonly MethodInfo _method;
-        private readonly Dictionary<PropertyInfo, object> _properties;
+        private readonly KeyValuePair<string, object>[] _arguments;
+        private readonly string _method;
+        private readonly Dictionary<string, object> _properties;
         private readonly TextInfoRange _range;
 
-        public TextSegment(Dictionary<PropertyInfo, object> properties, TextInfoRange range)
+        public TextSegment(Dictionary<string, object> properties, TextInfoRange range)
         {
-            _properties = new Dictionary<PropertyInfo, object>(properties);
+            _properties = new Dictionary<string, object>(properties);
             _range = range;
         }
 
-        public TextSegment(Dictionary<PropertyInfo, object> properties, MethodInfo method, object[] arguments)
+        public TextSegment(Dictionary<string, object> properties, string method,
+            KeyValuePair<string, object>[] arguments)
         {
-            _properties = new Dictionary<PropertyInfo, object>(properties);
+            _properties = new Dictionary<string, object>(properties);
             _method = method;
             _arguments = arguments;
         }
@@ -47,17 +47,8 @@ namespace TextPipeline.Postprocess
             if (_range.CharacterCount != 0)
                 yield return process(_range);
 
-            if (_method == null)
-                yield break;
-
-            if (_method.ReturnType == typeof(void))
-            {
-                MarkupInject.MethodInjectWithInvoke(sink, _method, _arguments);
-            }
-            else if (typeof(IEnumerator).IsAssignableFrom(_method.ReturnType))
-            {
-                yield return MarkupInject.MethodInjectWithInvoke(sink, _method, _arguments);
-            }
+            if (_method != null && MarkupInject.MethodInjectWithInvoke(sink, _method, _arguments) is IEnumerator nested)
+                yield return nested;
         }
 
         public void DoEffect(ITextSinkBase sink, Action<TextInfoRange> process)
@@ -106,15 +97,15 @@ namespace TextPipeline.Postprocess
             private bool _completed;
             private object _current;
 
-            private Dictionary<PropertyInfo, object> _segmentProperties;
+            private Dictionary<string, object> _segmentProperties;
 
             public ScopedSegmentEnumerator(
                 ITextSinkCoroutine sink,
-                Dictionary<PropertyInfo, object> properties,
+                Dictionary<string, object> properties,
                 IEnumerator body)
             {
                 _sink = sink;
-                _segmentProperties = new Dictionary<PropertyInfo, object>(properties);
+                _segmentProperties = new Dictionary<string, object>(properties);
                 _stack.Push(body);
             }
 

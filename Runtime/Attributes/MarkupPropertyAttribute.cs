@@ -13,9 +13,9 @@ namespace TextPipeline
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
     public sealed class MarkupPropertyAttribute : Attribute
     {
-        public string Name { get; }
-        public MarkupDataType DataType { get; }
-        public bool AllowDefault { get; }
+        internal string Name { get; }
+        internal MarkupDataType DataType { get; }
+        internal bool AllowDefault { get; }
 
         public MarkupPropertyAttribute(string name, MarkupDataType dataType,
             bool allowDefault = true)

@@ -9,7 +9,7 @@ namespace TextPipeline
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
     public sealed class MarkupAttribute : Attribute
     {
-        public string Name { get; }
+        internal string Name { get; }
 
         public MarkupAttribute(string name)
         {
