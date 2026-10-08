@@ -24,7 +24,7 @@ namespace TextPipeline.Editor.Tests
             public static readonly List<string> Processed = new();
             public static readonly List<string> Markers = new();
 
-            public PipelineComponent TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
 
             [MarkupProperty("label", MarkupDataType.String)]
             public string Label { get; set; } = "default";
@@ -67,9 +67,9 @@ namespace TextPipeline.Editor.Tests
         private sealed class PrefixSource : MonoBehaviour, ITextSource
         {
             public string Prefix { get; set; }
-            public PipelineComponent Pipeline { get; private set; }
+            public ITextPipeline Pipeline { get; private set; }
 
-            PipelineComponent ITextSource.TextPipeline
+            ITextPipeline ITextSource.TextPipeline
             {
                 set => Pipeline = value;
             }
@@ -162,7 +162,8 @@ namespace TextPipeline.Editor.Tests
         public void Lifecycle_OnEnable_RebuildsSerializedOriginalText_WhenEnabled()
         {
             ConfigureSinks(typeof(ProbeSink));
-            _pipelineObject = new GameObject("TextPipeline lifecycle consumer test", typeof(RectTransform), typeof(Canvas),
+            _pipelineObject = new GameObject("TextPipeline lifecycle consumer test", typeof(RectTransform),
+                typeof(Canvas),
                 typeof(CanvasRenderer));
             _pipelineObject.SetActive(false);
             _pipelineObject.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
@@ -174,6 +175,7 @@ namespace TextPipeline.Editor.Tests
             OriginalTextField.SetValue(_pipeline, "<probe : label = \"lifecycle\">L</probe>");
 
             _pipelineObject.SetActive(true);
+
             InvokeLifecycleMethod(_pipeline, "OnEnable");
 
             Assert.That(_text.text, Is.EqualTo("L"));

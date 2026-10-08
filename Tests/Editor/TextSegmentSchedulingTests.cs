@@ -12,7 +12,7 @@ namespace TextPipeline.Editor.Tests
         {
             public readonly List<string> Events = new();
 
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
 
             [MarkupProperty("label", MarkupDataType.String)]
             public string Label { get; set; } = "default";

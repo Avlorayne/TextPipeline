@@ -24,7 +24,7 @@ namespace TextPipeline.Editor.Tests
             [MarkupProperty("tone", MarkupDataType.String)]
             public string Tone { get; set; } = "default";
 
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
 
             [MarkupMethod("mark")]
             public void Mark([MarkupParam("message", MarkupDataType.String)] string message)
@@ -58,9 +58,9 @@ namespace TextPipeline.Editor.Tests
         public sealed class AuthoringSource : MonoBehaviour, ITextSource
         {
             public string ReplacementText { get; set; }
-            public TextPipeline Pipeline { get; private set; }
+            public ITextPipeline Pipeline { get; private set; }
 
-            TextPipeline ITextSource.TextPipeline
+            ITextPipeline ITextSource.TextPipeline
             {
                 set => Pipeline = value;
             }
@@ -273,8 +273,8 @@ namespace TextPipeline.Editor.Tests
 
             var sortSinks = typeof(TextPipeline).GetMethod("SortSinks",
                 BindingFlags.Instance | BindingFlags.NonPublic);
-            var thrown = Assert.Throws<TargetInvocationException>(
-                () => sortSinks.Invoke(pipeline, new object[] { new ITextSinkBase[] { new AuditSink() } }));
+            var thrown = Assert.Throws<TargetInvocationException>(() =>
+                sortSinks.Invoke(pipeline, new object[] { new ITextSinkBase[] { new AuditSink() } }));
 
             Assert.That(thrown.InnerException, Is.TypeOf<InvalidOperationException>());
             Assert.That(thrown.InnerException.Message, Does.Contain(typeof(AuditSink).FullName));

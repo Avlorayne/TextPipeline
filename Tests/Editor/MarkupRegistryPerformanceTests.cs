@@ -25,7 +25,7 @@ namespace TextPipeline.Editor.Tests
 
             public float LastDelay { get; private set; }
 
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
 
             [MarkupMethod("delay")]
             public void Delay([MarkupParam("seconds", MarkupDataType.Float)] float seconds)

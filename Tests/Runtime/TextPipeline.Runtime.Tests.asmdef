@@ -1,0 +1,14 @@
+{
+  "name": "TextPipeline.Runtime.Tests",
+  "references": [
+    "GUID:05cf1aa70adb602429b8e55cd7c843e4",
+    "GUID:6055be8ebefd69e48b49212b09b47b2f"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ]
+}

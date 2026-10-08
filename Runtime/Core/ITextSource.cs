@@ -5,7 +5,7 @@
         /// <summary>
         /// 希望在特殊情况下可以反向请求开启管线操作
         /// </summary>
-        TextPipeline TextPipeline { set; }
+        ITextPipeline TextPipeline { set; }
 
         /// <summary>
         /// 由管线注入预处理文本

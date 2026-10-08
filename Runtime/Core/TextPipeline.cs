@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace TextPipeline
 {
-    public class TextPipeline : MonoBehaviour
+    public class TextPipeline : MonoBehaviour, ITextPipeline
     {
         private static TextPipelineSettings Settings => TextPipelineSettings.Instance;
 
@@ -28,9 +28,9 @@ namespace TextPipeline
         [Tooltip("在组件开启时处理文本")] public bool processTextOnEnable = true;
 
         public TMP_Text textMesh;
+        TMP_Text ITextPipeline.textMesh => textMesh;
         private ITextSource[] _textSources;
-        private ITextSinkBase[] _textSinks;
-        private readonly InstanceTreeBuilder _instanceTreeBuilder = new();
+        private readonly TextPipelinePostprocessor _postprocessor = new();
         private readonly List<Coroutine> _sinkCoroutines = new();
 
         private string _textCache;
@@ -125,19 +125,7 @@ namespace TextPipeline
 
         private void Postprocess(string authoringText)
         {
-            SetTextAndUpdate(authoringText);
-            MarkupParsePlan plan = TextInfoMarkupParser.Analyse(authoringText, textMesh.textInfo);
-
-            SetTextAndUpdate(plan.FormalisedText);
-            RootNode tree = plan.Bind(textMesh.textInfo);
-            
-            _textSinks = SortSinks(_instanceTreeBuilder.Build(tree));
-            foreach (ITextSinkBase sink in _textSinks)
-                sink.TextPipeline = this;
-            foreach (var sink in _textSinks)
-                PostProcessorExecute.Execute(sink, tree);
-
-            textMesh.UpdateVertexData(TMP_VertexDataUpdateFlags.All);
+            _postprocessor.Process(this, authoringText, SetTextAndUpdate);
         }
 
         private void SetTextAndUpdate(string text)
@@ -151,6 +139,9 @@ namespace TextPipeline
             var coroutine = StartCoroutine(postProcess(steps));
             _sinkCoroutines.Add(coroutine);
         }
+
+        void ITextPipeline.StartSinkCoroutine(Func<TextSegment[], IEnumerator> postProcess, TextSegment[] steps)
+            => StartSinkCoroutine(postProcess, steps);
         
         private void CancelSinkRuns()
         {
@@ -170,12 +161,8 @@ namespace TextPipeline
             if (_textSources != null) return;
             var components = GetComponentsInChildren<Component>(true);
 
-            // Debug.Log($"{gameObject.name} GetComponentsInChildren: {string.Join(",", components.Select(t => t.GetType().ToString()))}");
-
             var sources = components.OfType<ITextSource>().ToArray();
             foreach (var source in sources) source.TextPipeline = this;
-
-            // Debug.Log($"{gameObject.name} Find Text Sources: {string.Join("," , sources.Select(t => t.GetType().ToString()))}\nFind Text Sinks: {string.Join(",", sinks.Select(t => t.GetType().ToString()))}");
 
             _textSources = SortSources(sources);
         }
@@ -188,24 +175,7 @@ namespace TextPipeline
 
         private ITextSinkBase[] SortSinks(ITextSinkBase[] sinks)
         {
-            if (sinks == null || sinks.Length == 0) return Array.Empty<ITextSinkBase>();
-
-            var sinkOrder = Settings.TextSinks;
-            var unconfiguredTypes = sinks
-                .Where(sink => sink == null || !sinkOrder.ContainsKey(sink.GetType()))
-                .Select(sink => sink?.GetType().FullName ?? "<null>")
-                .Distinct()
-                .ToArray();
-
-            if (unconfiguredTypes.Length > 0)
-            {
-                throw new InvalidOperationException(
-                    "TextPipeline 解析到了未在 TextPipelineSettings 的 Sink Sequence 中配置的 Sink 类型：" +
-                    string.Join(", ", unconfiguredTypes) +
-                    "。请在 Text TextPipeline Settings 中添加这些类型并设置执行顺序。");
-            }
-
-            return sinks.OrderBy(sink => sinkOrder[sink.GetType()]).ToArray();
+            return TextPipelinePostprocessor.SortSinks(sinks);
         }
 
 #if UNITY_EDITOR

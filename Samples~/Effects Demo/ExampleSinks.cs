@@ -102,7 +102,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("speed", MarkupDataType.Float)]
         public float Speed { get; set; } = 0.6f;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
 
         public IEnumerator PostProcess(TextSegment[] segments)
         {
@@ -181,7 +181,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("enabled", MarkupDataType.Boolean)]
         public bool Enabled { get; set; } = true;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
 
         [MarkupMethod("mark")]
         public void Mark([MarkupParam("message", MarkupDataType.String)] string message = "default")
@@ -268,7 +268,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("frames", MarkupDataType.Int)]
         public int Frames { get; set; } = 30;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
 
         public IEnumerator PostProcess(TextSegment[] segments)
         {
@@ -287,7 +287,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("frames", MarkupDataType.Int)]
         public int Frames { get; set; } = 30;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
 
         public IEnumerator PostProcess(TextSegment[] segments)
         {
@@ -329,7 +329,7 @@ namespace TextPipeline.Samples
 
     internal static class RevealAnimation
     {
-        public static IEnumerator Run(TextPipeline pipeline, TextInfoRange range,
+        public static IEnumerator Run(ITextPipeline pipeline, TextInfoRange range,
             string mode, string label, int frames)
         {
             EffectsDemoTrace.Record($"{mode} {label} begin ({frames} frames/char)");
@@ -349,7 +349,7 @@ namespace TextPipeline.Samples
             EffectsDemoTrace.Record($"{mode} {label} end");
         }
 
-        private static void SetAlpha(TextPipeline pipeline, TMP_CharacterInfo character, byte alpha)
+        private static void SetAlpha(ITextPipeline pipeline, TMP_CharacterInfo character, byte alpha)
         {
             if (!character.isVisible) return;
             var colors = pipeline.textMesh.textInfo.meshInfo[character.materialReferenceIndex].colors32;
@@ -364,7 +364,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("speed", MarkupDataType.Float)]
         public float Speed { get; set; } = 18f;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
 
         [MarkupMethod("pause")]
         public IEnumerator Pause([MarkupParam("seconds", MarkupDataType.Float)] float seconds)
@@ -402,7 +402,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("speed", MarkupDataType.Float)]
         public float Speed { get; set; } = 4f;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
         private TMP_MeshInfo[] _original;
 
         public IEnumerator PostProcess(TextSegment[] segments)
@@ -442,7 +442,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("intensity", MarkupDataType.Float)]
         public float Intensity { get; set; } = 2f;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
         private TMP_MeshInfo[] _original;
 
         public IEnumerator PostProcess(TextSegment[] segments)
@@ -484,7 +484,7 @@ namespace TextPipeline.Samples
         [MarkupProperty("spread", MarkupDataType.Float)]
         public float Spread { get; set; } = 0.08f;
 
-        public TextPipeline TextPipeline { get; set; }
+        public ITextPipeline TextPipeline { get; set; }
         private TMP_MeshInfo[] _original;
 
         public IEnumerator PostProcess(TextSegment[] segments)

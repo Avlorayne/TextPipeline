@@ -126,6 +126,30 @@ public sealed class DialoguePresenter : UnityEngine.MonoBehaviour
 `processTextOnEnable` 默认开启，组件启用时处理已保存的母本。`SetOriginalText(text, withPreProcessing, withPostProcessing)`
 可单独选择两个阶段；`Refresh()` 使用当前母本重跑。每次设置新文本及组件禁用时，管线会停止它持有的 Sink 协程。
 
+### 使用自带管线的 TMP 派生组件
+
+`TextPipeline` 仍是可独立挂载的 `MonoBehaviour`，已有场景和 `textMesh` 绑定方式继续使用。另一条入口是
+`TextPipelineUGUI : TextMeshProUGUI`：新建 UI 时可以直接添加 **UI > Text Pipeline (TMP)** 组件，它本身就是 TMP 渲染组件，
+不需要额外挂载 `TextPipeline`。两条路径共用后处理核心、Settings、Sources 和 Sinks；同一个派生文本不要再绑定独立管线。
+
+```csharp
+TMPro.TMP_Text label = GetComponent<TextPipeline.TextPipelineUGUI>();
+label.text = "<wave>你好</wave>";
+```
+
+派生组件的 `text` setter 先调用 `base.text = value`，完整保留 TMP 原有输入状态和网格、布局 dirty 标记，
+再把输入提交为母本。管线内部输出也通过 `base.text` 写入，避免递归。getter 返回最终显示字符串，
+`OriginalText` 返回带管线标签的母本；`SetOriginalText` 的阶段开关和 `Refresh` 同样可用。
+
+未激活或 TMP 尚未就绪时保存最新请求，准备好后处理；处理中再次提交的输入在之后的更新中处理。
+重复赋值会重建效果。`StopEffects()` 停止管线效果协程并保持文字可见，`Refresh()` 可重新启动；禁用派生组件会同时禁用 TMP 显示。
+派生组件 Inspector 的 Text Input 编辑母本并显示只读预览，编辑状态不会启动协程效果。
+TMP 的 `SetText(...)` / `SetCharArray(...)` 不经过虚拟属性 setter，需要管线处理时使用 `.text = ...` 或 `SetOriginalText(...)`。
+
+Source/Sink 的宿主属性统一为 `ITextPipeline`，以支持两种入口。已有自定义实现需要把
+`TextPipeline TextPipeline { get; set; }` 改为 `ITextPipeline TextPipeline { get; set; }`；Source 的显式接口属性及相关辅助方法也使用该类型。
+通过 `TextPipeline.textMesh` 访问渲染数据的代码继续使用。
+
 ### 自定义标签的最小实现
 
 Sink 是无参构造的普通类，不要依赖挂在 GameObject 上的实例。同步效果实现 `ITextSink`；跨帧效果实现 `ITextSinkCoroutine`。在
@@ -141,7 +165,7 @@ public sealed class HighlightSink : ITextSink
     [MarkupProperty("strength", MarkupDataType.Float)]
     public float Strength { get; set; } = 1f;
 
-    public TextPipeline.TextPipeline TextPipeline { get; set; }
+    public ITextPipeline TextPipeline { get; set; }
 
     public void PostProcess(TextSegment[] segments)
     {

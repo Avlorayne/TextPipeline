@@ -9,13 +9,13 @@ namespace TextPipeline.Editor.Tests
         [Markup("instancea")]
         public sealed class InstanceASink : ITextSinkBase
         {
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
         }
 
         [Markup("instanceb")]
         public sealed class InstanceBSink : ITextSinkBase
         {
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
         }
 
         [SetUp]

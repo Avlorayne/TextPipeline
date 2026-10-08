@@ -5,7 +5,7 @@ namespace TextPipeline
 {
     public interface ITextSinkBase
     {
-        TextPipeline TextPipeline { get; set; }
+        ITextPipeline TextPipeline { get; set; }
     }
 
     public interface ITextSink : ITextSinkBase
@@ -16,8 +16,8 @@ namespace TextPipeline
     public interface ITextSinkCoroutine : ITextSinkBase
     {
         /// <summary>
-        /// 对整个文本处理流程进行后处理，由 <see cref="TextPipeline"/> 启动，
-        /// 并在文本重建或组件被禁用时由 <see cref="TextPipeline"/> 取消。
+        /// 对整个文本处理流程进行后处理，由 <see cref="ITextPipeline"/> 宿主启动，
+        /// 并在文本重建或宿主组件被禁用时取消。
         /// </summary>
         /// <remarks>
         /// <para>

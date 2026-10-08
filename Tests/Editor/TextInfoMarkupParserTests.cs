@@ -17,7 +17,7 @@ namespace TextPipeline.Editor.Tests
             [MarkupProperty("label", MarkupDataType.String)]
             public string Label { get; set; }
 
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
 
             [MarkupMethod("pause")]
             public void Pause([MarkupParam("duration", MarkupDataType.Float)] float duration)
@@ -38,7 +38,7 @@ namespace TextPipeline.Editor.Tests
         [Markup("echo")]
         private sealed class EchoSink : ITextSinkBase
         {
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
         }
 
         [Markup("required")]
@@ -50,7 +50,7 @@ namespace TextPipeline.Editor.Tests
             [MarkupProperty("count", MarkupDataType.Int)]
             public int Count { get; set; }
 
-            public TextPipeline TextPipeline { get; set; }
+            public ITextPipeline TextPipeline { get; set; }
 
             public readonly List<int> ObservedCounts = new();
 
