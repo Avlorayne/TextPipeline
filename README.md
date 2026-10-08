@@ -16,7 +16,9 @@ Text Pipeline 页面导入 **Effects Demo**，打开导入后的 `EffectsDemo.un
 Play，即可看到持续视觉效果、同标签嵌套、作用域实例生命周期和段调度示例。左侧示例可滚动，右侧是事件时间线。顶部的 **Replay** 使用
 Bootstrap
 Inspector 中当前的八段母本文字重新构建， **Replay Scope** 只重建生命周期行， **Refresh** 使用各管线已保存的母本重新处理。导入内容自带
-`Resources/Text TextPipeline Settings.asset`；若项目已有同名的 Resources 设置资产，请先确认要使用哪个配置。
+`Resources/Text TextPipeline Settings.asset`。首次打开项目设置或烘焙时，会自动迁移唯一的旧 Resources 配置。
+如果项目设置已存在，请在示例配置的 Inspector 点击 **将此配置导入 Project Settings**（会替换当前顺序）；
+若项目已有另一个同名 Resources 资产，导入后保留一个即可，多个同名配置会阻止 Play / 构建。
 
 示例效果实现在 [ExampleSinks.cs](Samples~/Effects%20Demo/ExampleSinks.cs)
 ，场景入口在 [EffectsDemo.unity](Samples~/Effects%20Demo/EffectsDemo.unity)
@@ -101,10 +103,21 @@ TMP
 不同效果可以嵌套，例如 `<wave><rainbow>彩色波浪</rainbow></wave>`，但同时修改同一 TMP
 网格的效果需要程序协调顶点基准和执行顺序。示例为每种持续效果使用单独文本对象。
 
+## 项目配置与运行时烘焙
+
+配置入口为 **Edit > Project Settings > Text Pipeline**，支持 Sink / Source 类型选择、拖动排序和 Undo / Redo。
+编辑数据保存于 `ProjectSettings/TextPipelineSettings.asset`；运行时继续使用 `TextPipelineSettings.Instance`。
+
+进入 Play Mode 前和 Player 构建前（包括脚本调用 `BuildPipeline.BuildPlayer`）会自动将当前配置烘焙为 SO。
+新项目默认输出到 `Assets/Resources/Text TextPipeline Settings.asset`；有唯一旧 Resources 配置时原位更新，保留 GUID。
+也可通过项目设置页的 **烘焙运行时配置** 或 **Tools > Text Pipeline > Bake Runtime Settings** 手动烘焙。
+运行时 SO 的 Inspector 只读，后续配置变更请在 Project Settings 完成。
+关闭 Domain Reload 后再次进入 Play 也会重置运行时单例和顺序缓存。
+
 ## 给程序：接入已有 UI
 
 1. 在 `TMP_Text` 所在对象或其父对象上加 `TextPipeline`，让 `textMesh` 指向目标 TMP。一个管线管理一份 TMP 文本。
-2. 创建 `Resources/Text TextPipeline Settings.asset`（菜单 **Assets > Create > Text > Text TextPipeline Settings**），在
+2. 打开 **Edit > Project Settings > Text Pipeline**，在
    **Sink Sequence** 加入该 UI 会用到的 Sink 类型并排序；若使用 `ITextSource`，也在 **Source Sequence** 配置。解析出未配置的
    Sink 时，管线会抛错。
 3. 在 `Original Text` 写带标签的母本，或用代码设置：

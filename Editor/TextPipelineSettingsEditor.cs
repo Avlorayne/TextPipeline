@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace TextPipeline.Editor
 {
-    [CustomEditor(typeof(TextPipelineSettings))]
+    [CustomEditor(typeof(TextPipelineProjectSettings))]
     public class TextPipelineSettingsEditor : UnityEditor.Editor
     {
         private ReorderableList _sinkList;
@@ -38,7 +38,7 @@ namespace TextPipeline.Editor
             else
             {
                 Debug.LogError(
-                    "[TextPipelineSettingsEditor] 未找到 sinkSequenceTypeNames 字段，请检查 TextPipelineSettings.cs 是否包含该字段且类型为 List<string>。");
+                    "[TextPipelineSettingsEditor] 未找到 sinkSequenceTypeNames 字段，请检查 TextPipelineProjectSettings.cs。");
             }
 
             // 3. 初始化 Source 列表
@@ -53,8 +53,14 @@ namespace TextPipeline.Editor
             else
             {
                 Debug.LogError(
-                    "[TextPipelineSettingsEditor] 未找到 sourceSequenceTypeNames 字段，请检查 TextPipelineSettings.cs 是否包含该字段且类型为 List<string>。");
+                    "[TextPipelineSettingsEditor] 未找到 sourceSequenceTypeNames 字段，请检查 TextPipelineProjectSettings.cs。");
             }
+        }
+
+        private void ApplyChanges()
+        {
+            if (serializedObject.ApplyModifiedProperties())
+                ((TextPipelineProjectSettings)target).SaveSettings();
         }
 
         private ReorderableList CreateReorderableList(SerializedProperty prop, List<Type> options, string headerTitle)
@@ -100,7 +106,7 @@ namespace TextPipeline.Editor
                 onRemoveCallback = (list) =>
                 {
                     prop.DeleteArrayElementAtIndex(list.index);
-                    serializedObject.ApplyModifiedProperties();
+                    ApplyChanges();
                 }
             };
             return list;
@@ -168,8 +174,7 @@ namespace TextPipeline.Editor
                 prop.GetArrayElementAtIndex(index).stringValue = typeName;
             }
 
-            serializedObject.ApplyModifiedProperties(); // 应用修改
-            EditorUtility.SetDirty(target); // 标记资源脏数据
+            ApplyChanges();
         }
 
         // 格式化类型名称显示：命名空间作为后缀
@@ -191,12 +196,12 @@ namespace TextPipeline.Editor
         {
             serializedObject.Update();
 
-            EditorGUILayout.HelpBox("配置文本管线的处理顺序。上方的组件优先执行。", MessageType.Info);
+            EditorGUILayout.HelpBox("配置文本管线的处理顺序。上方的组件优先执行。配置保存于 ProjectSettings；进入 Play Mode 和构建前自动烘焙到 Resources。", MessageType.Info);
 
-            if (_sinkList != null) _sinkList.DoLayoutList();
             if (_sourceList != null) _sourceList.DoLayoutList();
+            if (_sinkList != null) _sinkList.DoLayoutList();
 
-            serializedObject.ApplyModifiedProperties();
+            ApplyChanges();
         }
     }
 }

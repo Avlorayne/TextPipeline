@@ -8,23 +8,32 @@ namespace TextPipeline
     /// <summary>
     /// 设置pipeline的文本处理顺序按照Sequence的次序优先级执行
     /// </summary>
-    [CreateAssetMenu(fileName = "Text TextPipeline Settings", menuName = "Text/Text TextPipeline Settings")]
     public class TextPipelineSettings : ScriptableObject
     {
+        public const string ResourceName = "Text TextPipeline Settings";
+
         private static TextPipelineSettings _instance;
 
         public static TextPipelineSettings Instance
         {
             get
             {
-                _instance ??= Resources.Load<TextPipelineSettings>("Text TextPipeline Settings");
-                _instance ??= CreateInstance<TextPipelineSettings>();
+                if (_instance == null)
+                {
+                    _instance = Resources.Load<TextPipelineSettings>(ResourceName);
+                    if (_instance == null) _instance = CreateInstance<TextPipelineSettings>();
+                    _instance.ClearCache();
+                }
                 return _instance;
             }
         }
 
-        List<Type> _textSinkCache = new();
-        List<Type> _textSourceCache = new();
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetInstance()
+        {
+            if (_instance != null) _instance.ClearCache();
+            _instance = null;
+        }
 
         // 实际序列化的是类型全名（Type 本身不可被 Unity 序列化）
         [SerializeField] private List<string> sinkSequenceTypeNames = new List<string>();
@@ -82,17 +91,14 @@ namespace TextPipeline
             }
         }
 
-#if UNITY_EDITOR
-        private void OnValidate()
+        private void ClearCache()
         {
-            _textSinkCache.Clear();
-            _textSourceCache.Clear();
-
-            _textSinkCache = TypeFinder.FindDerivedTypes<ITextSinkBase>()
-                .Where(type => type.IsDefined(typeof(MarkupAttribute), inherit: false))
-                .ToList();
-            _textSourceCache = TypeFinder.FindDerivedTypes<ITextSource>().ToList();
+            _textSources = null;
+            _textSinks = null;
         }
-#endif
+
+        private void OnEnable() => ClearCache();
+
+        private void OnValidate() => ClearCache();
     }
 }
