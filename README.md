@@ -15,7 +15,7 @@ https://github.com/Avlorayne/TextPipeline.git?path=/Packages/TextPipeline
 Text Pipeline 页面导入 **Effects Demo**，打开导入后的 `EffectsDemo.unity` 并按
 Play，即可看到持续视觉效果、同标签嵌套、作用域实例生命周期和段调度示例。左侧示例可滚动，右侧是事件时间线。顶部的 **Replay** 使用
 Bootstrap
-Inspector 中当前的八段母本文字重新构建， **Replay Scope** 只重建生命周期行， **Refresh** 使用各管线已保存的母本重新处理。导入内容自带
+Inspector 中当前的母本文字重新构建， **Replay Scope** 只重建生命周期行， **Refresh** 使用各管线已保存的母本重新处理。导入内容自带
 `Resources/Text TextPipeline Settings.asset`。首次打开项目设置或烘焙时，会自动迁移唯一的旧 Resources 配置。
 如果项目设置已存在，请在示例配置的 Inspector 点击 **将此配置导入 Project Settings**（会替换当前顺序）；
 若项目已有另一个同名 Resources 资产，导入后保留一个即可，多个同名配置会阻止 Play / 构建。
@@ -42,6 +42,21 @@ TextPipeline 母本的视觉效果：
 <audit : label = "outer", strength = 0.25, count = 2>outer <audit : label = "inner", strength = 1><b>inner</b></audit> outer<audit : mark("checkpoint")></audit>  <audit : label = "scope one" | scope = 1>scope 1</audit>  <audit : label = "sibling", enabled = false | scope = 0>sibling</audit><audit : mark>
 ```
 
+### 预处理示例：PREPROCESS
+
+左侧底部有两行 PREPROCESS，分别使用 `TextPipeline` 和 `TextPipelineUGUI`。输入母本为
+`Hello, {{player}}! {{effect}}`，`Player Name` 默认为 `Ada`。每行同时显示输入和经过管线处理的文字。
+
+Source Sequence 中 `DemoVariablesSource` 先替换玩家名，并把 `{{effect}}` 展开为
+`[[wave]]Sources run before sinks.[[/wave]]`；`DemoMarkupSource` 再将简写展开为 `<wave ...>` 标签。
+后处理去除自定义标签，并让 `Sources run before sinks.` 产生波浪动画。若颠倒这两个 Source 的顺序，变量展开后留下的简写将不会被解析为效果。
+Execution Trace 会记录两步的输入和输出。两个 Source 都挂在文本对象上，并在管线首次启用前创建。
+
+修改 Bootstrap 的 `Player Name` 或 `Preprocessing` 后点击 **Replay** 可提交新值； **Refresh**
+从保存的母本重新跑预处理和后处理，母本中的占位符仍会保留。
+示例的 `Editor/EffectsDemoSettingsSetup.cs` 会在导入后和进入 Play 时，通过编辑器设置 API 补充缺失的 Source 并重新烘焙；已有 Source/Sink 顺序会保留。
+也可使用 **Tools > Text Pipeline > Configure Effects Demo Sources** 手动执行。不要只在 Unity 打开时修改 ProjectSettings 文件；编辑器中已加载的设置单例可能在下次烘焙时覆盖磁盘内容。
+
 ### 先看同标签嵌套：SHAKE
 
 画面文字是 `soft HARD SHAKE soft`。外层 `<shake : intensity = 0.5>` 包住整句，左右两处 `soft` 都轻微抖动。中间再套同一个
@@ -55,7 +70,8 @@ TextPipeline 母本的视觉效果：
 `KEEP AGE` 指定 `scope = 0`，`RESET AGE` 指定 `scope = 1`，两段由 **同一标签类型的两个 Sink 实例**分别驱动。它们持续按自身累计
 `age`
 明暗脉冲。每段下方实时显示 `scope`、实例编号 `#`、运行次数 `run`、累计年龄 `age` 和运行状态。
-等两边的 `age` 增长几秒后，点击 **Replay Scope**：两段文字冻结约 1.2 秒，状态显示 `STOPPED`，然后重新运行；左侧 `scope = 0` 复用原实例，`#` 不变、`run` 加一、
+等两边的 `age` 增长几秒后，点击 **Replay Scope**：两段文字冻结约 1.2 秒，状态显示 `STOPPED`，然后重新运行；左侧 `scope = 0`
+复用原实例，`#` 不变、`run` 加一、
 `age` 继续累计；
 右侧 `scope = 1` 得到新实例，`#` 改变、`run` 从一开始、`age` 回到零。右侧 Execution Trace 记录创建、绑定、运行开始与停止的时间。
 这里的“生命周期”指 Sink 实例的复用或重建，以及其协程的启动和停止；它不表示 Unity 对象的销毁回调。
@@ -117,8 +133,8 @@ TMP
 ## 给程序：接入已有 UI
 
 1. 在 `TMP_Text` 所在对象或其父对象上加 `TextPipeline`，让 `textMesh` 指向目标 TMP。一个管线管理一份 TMP 文本。
-2. 打开 **Edit > Project Settings > Text Pipeline**，在
-   **Sink Sequence** 加入该 UI 会用到的 Sink 类型并排序；若使用 `ITextSource`，也在 **Source Sequence** 配置。解析出未配置的
+2. 打开 **Edit > Project Settings > Text Pipeline**，在 **Sink Sequence** 加入该 UI 会用到的 Sink 类型并排序；若使用
+   `ITextSource`，也在 **Source Sequence** 配置。解析出未配置的
    Sink 时，管线会抛错。
 3. 在 `Original Text` 写带标签的母本，或用代码设置：
 
@@ -157,7 +173,8 @@ label.text = "<wave>你好</wave>";
 未激活或 TMP 尚未就绪时保存最新请求，准备好后处理；处理中再次提交的输入在之后的更新中处理。
 重复赋值会重建效果。`StopEffects()` 停止管线效果协程并保持文字可见，`Refresh()` 可重新启动；禁用派生组件会同时禁用 TMP 显示。
 派生组件 Inspector 的 Text Input 编辑母本并显示只读预览，编辑状态不会启动协程效果。
-TMP 的 `SetText(...)` / `SetCharArray(...)` 不经过虚拟属性 setter，需要管线处理时使用 `.text = ...` 或 `SetOriginalText(...)`。
+TMP 的 `SetText(...)` / `SetCharArray(...)` 不经过虚拟属性 setter，需要管线处理时使用 `.text = ...` 或
+`SetOriginalText(...)`。
 
 Source/Sink 的宿主属性统一为 `ITextPipeline`，以支持两种入口。已有自定义实现需要把
 `TextPipeline TextPipeline { get; set; }` 改为 `ITextPipeline TextPipeline { get; set; }`；Source 的显式接口属性及相关辅助方法也使用该类型。

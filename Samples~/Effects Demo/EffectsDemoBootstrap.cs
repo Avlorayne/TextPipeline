@@ -13,6 +13,12 @@ namespace TextPipeline.Samples
     {
         private const int LifetimePipelineIndex = 3;
 
+        [Tooltip("预处理示例中 {{player}} 的替换值。")]
+        public string playerName = "Ada";
+
+        [TextArea(2, 4), Tooltip("先替换变量，再把 [[wave]] 简写展开为管线标签，最后执行 wave 效果。")]
+        public string preprocessing = "Hello, {{player}}! {{effect}}";
+
         [TextArea(2, 4)] public string typer =
             "<typer : speed = 16>Hello, <typer : pause(0.4)>welcome to Text Pipeline.</typer>";
 
@@ -51,7 +57,8 @@ namespace TextPipeline.Samples
             "<parallel : label = \"A\", frames = 30>ALPHA</parallel>   " +
             "<parallel : label = \"B\", frames = 30>BETA</parallel></audit>";
 
-        private readonly List<PipelineComponent> _pipelines = new();
+        private readonly List<ITextPipeline> _pipelines = new();
+        private readonly List<TMP_Text> _preprocessingInputs = new();
         private TMP_Text _traceText;
         private ScrollRect _traceScroll;
         private TMP_Text _lifetimeStatusText;
@@ -100,7 +107,7 @@ namespace TextPipeline.Samples
 
             AddText(canvasObject.transform, "Title", "TEXT PIPELINE  /  EFFECTS DEMO", -16, 30, false, 42);
             AddText(canvasObject.transform, "Hint",
-                "Nested SHAKE changes intensity. Replay Scope pauses both runs, then scope 0 resumes and scope 1 restarts.",
+                "Scroll down for PREPROCESS: variables -> markup -> effects. Replay Scope compares sink lifetimes.",
                 -66, 18, false, 44);
             AddButton(canvasObject.transform, "Replay Scope", -384, ReplayScope);
             AddButton(canvasObject.transform, "Replay", -222, Replay);
@@ -131,7 +138,7 @@ namespace TextPipeline.Samples
             contentRect.anchorMax = new Vector2(1, 1);
             contentRect.pivot = new Vector2(0.5f, 1);
             contentRect.anchoredPosition = Vector2.zero;
-            contentRect.sizeDelta = new Vector2(0, 1210);
+            contentRect.sizeDelta = new Vector2(0, 1580);
 
             var scrolling = scrollObject.GetComponent<ScrollRect>();
             scrolling.viewport = viewportRect;
@@ -144,8 +151,8 @@ namespace TextPipeline.Samples
             // The scroll viewport needs a layout pass before effects capture TMP mesh data.
             yield return null;
 
-            AddRow(content.transform, "TYPER  /  serial segments and coroutine marker", typer, -12, 65);
-            AddRow(content.transform, "WAVE  /  vertex animation", wave, -130, 65);
+            AddRow(content.transform, "TYPER  /  serial segments and coroutine marker", typer, -12, 65, true);
+            AddRow(content.transform, "WAVE  /  vertex animation", wave, -130, 65, true);
             AddRow(content.transform, "SHAKE  /  nested: soft 0.5, HARD 14, soft 0.5", shake, -248, 65);
             AddRow(content.transform, "LIFETIME  /  Replay Scope to compare instances", lifetime, -366, 45);
             AddText(content.transform, "Lifetime explanation",
@@ -153,10 +160,14 @@ namespace TextPipeline.Samples
             _lifetimeStatusText = AddText(content.transform, "Lifetime live status",
                 EffectsDemoLifetime.Summary, -480, 18, false, 64);
             _lifetimeStatusText.color = new Color(0.9f, 0.96f, 1f);
-            AddRow(content.transform, "RAINBOW  /  vertex color animation", rainbow, -578, 65);
+            AddRow(content.transform, "RAINBOW  /  vertex color animation", rainbow, -578, 65, true);
             AddRow(content.transform, "SERIAL  /  A finishes before B begins", serial, -696, 85);
             AddRow(content.transform, "PARALLEL  /  A and B advance together", parallel, -824, 85);
-            AddRow(content.transform, "AUDIT  /  property types and marker events in trace", audit, -952, 135);
+            AddRow(content.transform, "AUDIT  /  property types and marker events in trace", audit, -952, 135, true);
+            AddRow(content.transform, "PREPROCESS  /  variables -> markup -> wave", preprocessing,
+                -1150, 85, withPreprocessing: true);
+            AddRow(content.transform, "PREPROCESS  /  variables -> markup -> wave", preprocessing,
+                -1350, 85, true, withPreprocessing: true);
             AddTracePanel(canvasObject.transform);
             UpdateTrace();
             // Newly created RectTransforms receive their final widths on the next canvas pass.
@@ -217,17 +228,27 @@ namespace TextPipeline.Samples
             _traceScroll.scrollSensitivity = 30;
         }
 
-        private void AddRow(Transform parent, string label, string markup, float y, float height)
+        private void AddRow(Transform parent, string label, string markup, float y, float height,
+            bool usePipelineUGUI = false, bool withPreprocessing = false)
         {
-            AddText(parent, label + " label", label, y, 18, false, 30);
-            var text = AddText(parent, label + " example", markup, y - 34, 30, true, height);
-            _pipelines.Add(text.GetComponent<PipelineComponent>());
+            var backend = usePipelineUGUI ? "TextPipelineUGUI" : "TextPipeline";
+            AddText(parent, label + " label", backend + "  /  " + label, y, 18, false, 30);
+            if (withPreprocessing)
+                _preprocessingInputs.Add(AddText(parent, backend + " preprocessing input", "Input: " + markup,
+                    y - 34, 16, false, 40));
+            var text = AddText(parent, backend + " / " + label + " example", markup,
+                y - (withPreprocessing ? 78 : 34), 30, true, height,
+                usePipelineUGUI, withPreprocessing ? playerName ?? string.Empty : null);
+            _pipelines.Add(usePipelineUGUI
+                ? (ITextPipeline)text
+                : text.GetComponent<PipelineComponent>());
         }
 
         private static TMP_Text AddText(Transform parent, string name, string value, float y,
-            float fontSize, bool addPipeline, float height)
+            float fontSize, bool addPipeline, float height, bool usePipelineUGUI = false,
+            string sourcePlayerName = null)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+            var go = new GameObject(name, typeof(RectTransform));
             go.SetActive(false);
             go.transform.SetParent(parent, false);
             var rect = go.GetComponent<RectTransform>();
@@ -236,14 +257,26 @@ namespace TextPipeline.Samples
             rect.pivot = new Vector2(0.5f, 1f);
             rect.anchoredPosition = new Vector2(0, y);
             rect.sizeDelta = new Vector2(0, height);
-            var text = go.GetComponent<TextMeshProUGUI>();
-            text.text = value;
+            // Sources must exist before either component's Awake caches the source list.
+            if (sourcePlayerName != null)
+            {
+                // Attach in reverse order to demonstrate that Source Sequence controls execution.
+                go.AddComponent<DemoMarkupSource>();
+                go.AddComponent<DemoVariablesSource>().playerName = sourcePlayerName;
+            }
+            var text = (TMP_Text)go.AddComponent(usePipelineUGUI
+                ? typeof(TextPipelineUGUI)
+                : typeof(TextMeshProUGUI));
+            if (text is TextPipelineUGUI ugui)
+                ugui.processTextOnEnable = false;
             text.fontSize = fontSize;
             text.color = addPipeline ? new Color(0.95f, 0.96f, 1f) : new Color(0.57f, 0.75f, 0.95f);
             text.enableWordWrapping = true;
             text.alignment = TextAlignmentOptions.TopLeft;
+            // Assign through TMP_Text while inactive: UGUI processes the pending text on activation.
+            text.text = value;
 
-            if (addPipeline)
+            if (addPipeline && !usePipelineUGUI)
             {
                 var pipeline = go.AddComponent<PipelineComponent>();
                 pipeline.processTextOnEnable = false;
@@ -291,9 +324,21 @@ namespace TextPipeline.Samples
             CancelScopeReplay();
             EffectsDemoTrace.Clear();
             EffectsDemoLifetime.Clear();
-            var authoredTexts = new[] { typer, wave, shake, lifetime, rainbow, serial, parallel, audit };
+            foreach (var input in _preprocessingInputs)
+                input.text = "Input: " + preprocessing;
+            var authoredTexts = new[]
+                { typer, wave, shake, lifetime, rainbow, serial, parallel, audit, preprocessing, preprocessing };
             for (var i = 0; i < _pipelines.Count; i++)
-                _pipelines[i].SetOriginalTextSimply(authoredTexts[i]);
+            {
+                var pipeline = _pipelines[i];
+                var variables = pipeline.textMesh.GetComponent<DemoVariablesSource>();
+                if (variables != null)
+                    variables.playerName = playerName;
+                if (pipeline is TextPipelineUGUI)
+                    pipeline.textMesh.text = authoredTexts[i];
+                else
+                    pipeline.SetOriginalTextSimply(authoredTexts[i]);
+            }
         }
 
         private void ReplayScope()
@@ -306,12 +351,12 @@ namespace TextPipeline.Samples
         {
             EffectsDemoTrace.Clear();
             var pipeline = _pipelines[LifetimePipelineIndex];
-            pipeline.enabled = false;
+            ((Behaviour)pipeline).enabled = false;
             EffectsDemoLifetime.StopAll();
             EffectsDemoTrace.Record("Replay Scope: both runs stopped");
             yield return new WaitForSecondsRealtime(1.2f);
             EffectsDemoTrace.Record("Replay Scope: rebuilding");
-            pipeline.enabled = true;
+            ((Behaviour)pipeline).enabled = true;
             pipeline.SetOriginalTextSimply(lifetime);
             _scopeReplayCoroutine = null;
         }
@@ -322,7 +367,7 @@ namespace TextPipeline.Samples
             StopCoroutine(_scopeReplayCoroutine);
             _scopeReplayCoroutine = null;
             if (_pipelines.Count > LifetimePipelineIndex)
-                _pipelines[LifetimePipelineIndex].enabled = true;
+                ((Behaviour)_pipelines[LifetimePipelineIndex]).enabled = true;
         }
 
         private void Refresh()

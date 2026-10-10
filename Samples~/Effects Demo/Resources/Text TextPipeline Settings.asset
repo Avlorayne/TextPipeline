@@ -21,4 +21,6 @@ MonoBehaviour:
   - TextPipeline.Samples.AuditSink, Assembly-CSharp
   - TextPipeline.Samples.SerialRevealSink, Assembly-CSharp
   - TextPipeline.Samples.ParallelRevealSink, Assembly-CSharp
-  sourceSequenceTypeNames: []
+  sourceSequenceTypeNames:
+  - TextPipeline.Samples.DemoVariablesSource, Assembly-CSharp
+  - TextPipeline.Samples.DemoMarkupSource, Assembly-CSharp
